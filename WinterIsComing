@@ -1,0 +1,71 @@
+Option Explicit
+
+Sub WinterIsComing(Optional HeaderRow As Boolean = True, Optional ExtraColumns As Long = 0)
+''' Параметры задают формат листа:
+'''     HeaderRow
+'''         TRUE если есть заголовок, а данные начинаютя со второй строки - например, лист "Великие Луки"
+'''         FALSE если заголовка нет, а данные начинаютя с первой строки - например, лист "Брянск"
+'''     ExtraColumns: количество дополнтельных столцов перед столбцом года
+'''
+''' хотя в каждой строке листа содержатся данные за каждый день, это не обязательно:
+''' количество дней считается как разница дат
+
+Const SnowDaysMin As Long = 30
+Const DaysNoSnowMax As Long = 3
+
+Dim ws As Worksheet
+Dim rn As Long, DateCurrent  As Date ' счётчик строк, дата в текущей строке
+Dim DateSnow As Date, DateNoSnow As Date ' дата установки и схода снежного покрова
+Dim Snow As Long, DaysSnow As Long, DaysNoSnow As Long ' глубина, счётчик дней со снегом и без
+Dim MessageCurrent As String, MessagePrev As String ' итоговое сообщение
+Dim hr As Long ' 1 если установлен параметр HeaderRow
+
+    Set ws = ActiveSheet
+    
+    If ws.UsedRange.Rows.Count < 1 + HeaderRow Then
+        MsgBox "На листе нет данных"
+        Exit Sub
+    End If
+    
+    hr = IIf(HeaderRow, 1, 0)
+    Snow = ws.Cells(1 + hr, 4 + ExtraColumns)
+    MessagePrev = ""
+    
+    For rn = 1 + hr To ws.UsedRange.Rows.Count
+        DateCurrent = DateSerial(ws.Cells(rn, 1 + ExtraColumns), ws.Cells(rn, 2 + ExtraColumns), ws.Cells(rn, 3 + ExtraColumns))
+        Snow = ws.Cells(rn, 4 + ExtraColumns)
+        
+        If Snow > 0 Then
+            If DateSnow = 0 Then DateSnow = DateCurrent 'первый день со снегом
+            DaysSnow = 1 + DateDiff("d", DateSnow, DateCurrent)
+            If DaysSnow >= SnowDaysMin Then ' больше 30 дней со снегом
+                MessageCurrent = "Зима пришла " & Format(DateSnow, "dd.mm.YYYY")
+                DaysNoSnow = 0: DateNoSnow = 0
+            End If
+        End If
+        
+        If Snow = 0 Then
+            If DateNoSnow = 0 Then DateNoSnow = DateCurrent ' первый день без снега
+            DaysNoSnow = 1 + DateDiff("d", DateNoSnow, DateCurrent)
+            If DaysNoSnow >= DaysNoSnowMax Then ' больше 3 дней без снега
+                MessageCurrent = "Зима ушла " & Format(DateNoSnow, "dd.mm.YYYY")
+                DaysSnow = 0: DateSnow = 0
+            End If
+        End If
+        
+        If MessageCurrent <> MessagePrev Then
+            Debug.Print MessageCurrent
+            MessagePrev = MessageCurrent
+        End If
+    Next rn
+    
+End Sub
+
+
+Sub WiC()
+    ActiveWorkbook.Worksheets("Великие Луки").Activate
+    WinterIsComing ' с параметрами по умолчанию: заголовок = Да, дополнительных столбцов = 0
+    
+    ActiveWorkbook.Worksheets("Брянск").Activate
+    WinterIsComing HeaderRow:=False, ExtraColumns:=1   ' с параметрами: заголовок = Нет, дополнительных столбцов = 1
+End Sub
